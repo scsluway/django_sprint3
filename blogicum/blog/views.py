@@ -1,25 +1,27 @@
-from datetime import datetime
-
+from django.utils import timezone
 from django.shortcuts import render, get_object_or_404
 
 from blog.models import Post, Category
 
+NUMBER_OF_POSTS = 5
 
-def filter_posts(slug=None):
-    posts = Post.objects.select_related(
+
+def filter_posts(manager=Post.objects):
+    return manager.select_related(
         'category', 'author', 'location'
     ).filter(
+        category__is_published=True,
         is_published=True,
-        pub_date__lt=datetime.now()
+        pub_date__lt=timezone.now()
     )
-    return (posts.filter(category__is_published=True) if slug is None
-            else posts.filter(category__slug=slug))
 
 
 def index(request):
     return render(
-        request, 'blog/index.html',
-        {'post_list': filter_posts().order_by('-id')[:5]})
+        request,
+        'blog/index.html',
+        {'post_list': filter_posts()[:NUMBER_OF_POSTS]}
+    )
 
 
 def post_detail(request, post_id):
@@ -28,9 +30,14 @@ def post_detail(request, post_id):
 
 
 def category_posts(request, category_slug):
-    category = get_object_or_404(Category,
-                                 slug=category_slug,
-                                 is_published=True)
-    posts = filter_posts(category.slug)
-    return render(request, 'blog/category.html',
-                  {'category': category, 'post_list': posts})
+    category = get_object_or_404(
+        Category,
+        slug=category_slug,
+        is_published=True
+    )
+    posts = filter_posts(category.posts)
+    return render(
+        request,
+        'blog/category.html',
+        {'category': category, 'post_list': posts}
+    )
